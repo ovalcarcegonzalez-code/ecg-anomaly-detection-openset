@@ -1,0 +1,32 @@
+# --- Entornos virtuales ---
+venv/
+.venv/
+env/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+
+# --- Datos ---
+# El dataset MIT-BIH no se versiona (unos 100 MB, y se descarga con
+# src/data/download_data.py). Los splits procesados tampoco: son un artefacto
+# reproducible a partir del notebook.
+data/raw/
+data/processed/
+
+# --- Notebooks ---
+.ipynb_checkpoints/
+
+# --- Editores ---
+.vscode/
+.idea/
+*.swp
+
+# --- Sistema operativo ---
+.DS_Store
+
+# --- Notas personales ---
+notas.txt
+info.md               

@@ -1,0 +1,26 @@
+# Instalación de PyTorch en versión CPU: la distribución por defecto incluye
+# dependencias CUDA que superan el límite de memoria de build en despliegues
+# gratuitos en la nube y son innecesarias para inferencia.
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# --- Datos y procesamiento de señal ---
+wfdb==4.1.2
+neurokit2==0.2.9
+numpy==1.26.4
+pandas==2.2.2
+scipy==1.13.0
+
+# --- Modelado ---
+torch==2.3.0
+scikit-learn==1.4.2
+
+# --- Visualización ---
+matplotlib==3.8.4
+plotly==5.22.0
+
+# --- Interfaz web ---
+streamlit==1.35.0
+
+# --- Soporte de notebooks ---
+nbformat==5.10.4
+ipykernel==6.29.4                     
