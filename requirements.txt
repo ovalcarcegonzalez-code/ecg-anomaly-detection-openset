@@ -1,8 +1,3 @@
-# Instalación de PyTorch en versión CPU: la distribución por defecto incluye
-# dependencias CUDA que superan el límite de memoria de build en despliegues
-# gratuitos en la nube y son innecesarias para inferencia.
---extra-index-url https://download.pytorch.org/whl/cpu
-
 # --- Datos y procesamiento de señal ---
 wfdb==4.1.2
 neurokit2==0.2.9
