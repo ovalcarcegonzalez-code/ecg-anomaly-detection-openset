@@ -274,5 +274,5 @@ médico ni sustituye al criterio clínico profesional.
 
 ## Autor
 
-Óscar Valcárcel González — Grado en Inteligencia Artificial, Universidad Rey
+Óscar Valcarce González — Grado en Inteligencia Artificial, Universidad Rey
 Juan Carlos. Aplicaciones de la Inteligencia Artificial, curso 2026-27.
