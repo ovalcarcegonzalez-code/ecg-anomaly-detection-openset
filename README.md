@@ -5,7 +5,7 @@ Sistema de detección de latidos anómalos en electrocardiograma entrenado
 supervisado, es capaz de identificar arritmias que nunca vio durante el
 entrenamiento (*open-set detection*).
 
-**Aplicación desplegada:** [enlace pendiente]
+**Aplicación desplegada:** https://ecg-anomaly-detection-openset-ovg.streamlit.app
 
 ---
 
@@ -97,7 +97,7 @@ capacidad discriminativa real.
 Requiere Python 3.12.
 
 ```bash
-git clone https://github.com/<usuario>/ecg-anomaly-detection.git
+git clone https://github.com/ovalcarcegonzalez-code/ecg-anomaly-detection.git
 cd ecg-anomaly-detection
 
 python3 -m venv venv
