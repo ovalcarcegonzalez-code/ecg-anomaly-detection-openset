@@ -52,9 +52,7 @@ SHRINK_THRES: float = 0.0025         # umbral de sparsity de la atención
 # ---------------------------------------------------------------------------
 # W_RR y UMBRAL son parámetros de producción, ajustables sin reentrenar.
 # El checkpoint guarda los valores con los que se evaluó el modelo en el
-# notebook (w_rr=0.25); aquí se usa 0.15 por dos motivos: fue el óptimo del
-# barrido de AUROC global, y reduce el peso del componente de ritmo, que es
-# el más sensible a errores de detección automática de picos R en producción.
+# notebook (w_rr=0.25); aquí se usa 0.15 
 W_RR: float = 0.15                   # peso del componente de ritmo en el score
 FPR_OBJETIVO: float = 0.10           # tasa de falsa alarma sobre latidos normales
 
@@ -63,10 +61,7 @@ FPR_OBJETIVO: float = 0.10           # tasa de falsa alarma sobre latidos normal
 # ---------------------------------------------------------------------------
 # Umbral de producción, recalibrado tras fijar W_RR=0.15.
 # Obtenido como mediana de los umbrales al 10% de FPR sobre cinco registros
-# MIT-BIH predominantemente normales (100, 101, 103, 112, 115). Se usa la
-# mediana por robustez frente a la notable variabilidad inter-paciente
-# observada (rango: -0.83 a 0.48), que motiva además la opción de
-# recalibración por paciente disponible en la interfaz.
+# MIT-BIH predominantemente normales (100, 101, 103, 112, 115). 
 UMBRAL_PRODUCCION: float = 0.1501
 
 
@@ -87,7 +82,7 @@ AAMI_MAP: dict[str, str] = {
 }
 
 CLASES_AAMI: list[str] = ["N", "S", "F", "V", "Q"]
-CLASE_NORMAL: str = "N"              # definición clínica: solo N es normal
+CLASE_NORMAL: str = "N"              # definición clínica, solo N es nromal
 
 DESCRIPCION_CLASES: dict[str, str] = {
     "N": "Latido normal (sinusal o con conducción alterada)",

@@ -26,28 +26,13 @@ StrArray = npt.NDArray[np.str_]
 
 
 # ---------------------------------------------------------------------------
-# Anotaciones (solo entrenamiento; en inferencia no hay etiquetas)
+# Anotaciones (solo entrenamiento, en inferencia no hay etiquetas)
 # ---------------------------------------------------------------------------
 
 def filtrar_y_mapear(
     simbolos: list[str] | StrArray, picos: list[int] | IntArray
 ) -> tuple[IntArray, StrArray]:
-    """
-    Descarta anotaciones que no corresponden a latidos y mapea el resto a
-    superclases AAMI EC57.
-
-    Los símbolos como '+', '~' o '!' marcan cambios de ritmo o de calidad de
-    señal, no latidos, por lo que segmentar en torno a ellos introduciría
-    ruido en el dataset.
-
-    Args:
-        simbolos: símbolos de anotación originales del registro.
-        picos: posiciones (en muestras) de cada anotación.
-
-    Returns:
-        picos_validos: posiciones de las anotaciones que sí son latidos.
-        etiquetas_aami: superclase AAMI de cada latido válido.
-    """
+    
     simbolos_arr = np.asarray(simbolos)
     picos_arr = np.asarray(picos)
 
@@ -64,23 +49,7 @@ def filtrar_y_mapear(
 # ---------------------------------------------------------------------------
 
 def detectar_picos_r(senal: FloatArray, fs: int) -> IntArray:
-    """
-    Localiza los picos R de una señal ECG sin anotar.
-
-    Utiliza NeuroKit2, que implementa algoritmos de detección validados
-    clínicamente. En entrenamiento no se usa: MIT-BIH ya aporta los picos
-    anotados por cardiólogos.
-
-    Args:
-        senal: señal ECG cruda, 1D.
-        fs: frecuencia de muestreo en Hz.
-
-    Returns:
-        Posiciones (en muestras) de los picos R detectados.
-
-    Raises:
-        RuntimeError: si no se detecta ningún pico.
-    """
+    
     import neurokit2 as nk
 
     try:
@@ -105,22 +74,7 @@ def detectar_picos_r(senal: FloatArray, fs: int) -> IntArray:
 def calcular_features_rr(
     picos: IntArray, indice: int, fs: int, ventana_local: int = VENTANA_RR_LOCAL
 ) -> list[float]:
-    """
-    Calcula las cuatro características de ritmo de un latido.
-
-    Los ratios se normalizan por el ritmo basal local del propio paciente, de
-    modo que un valor por debajo de 1 indica prematuridad y por encima de 1
-    indica pausa, con independencia de la frecuencia cardíaca basal.
-
-    Args:
-        picos: posiciones de todos los picos R del registro.
-        indice: índice del latido dentro de `picos` (debe tener vecinos).
-        fs: frecuencia de muestreo en Hz.
-        ventana_local: número de latidos previos para estimar el ritmo basal.
-
-    Returns:
-        [rr_previo, rr_siguiente, ratio_previo, ratio_siguiente] en segundos.
-    """
+    
     rr_previo = (picos[indice] - picos[indice - 1]) / fs
     rr_siguiente = (picos[indice + 1] - picos[indice]) / fs
 
@@ -148,31 +102,7 @@ def segmentar_latidos(
     ventana_ms: int = VENTANA_MS,
     umbral_std_plano: float = UMBRAL_STD_PLANO,
 ) -> tuple[FloatArray, FloatArray, StrArray | None, IntArray]:
-    """
-    Extrae latidos individuales centrados en el pico R, con sus features de ritmo.
-
-    Se descartan los latidos demasiado próximos a los bordes del registro (no
-    cabe la ventana completa), el primero y el último (no tienen ambos vecinos
-    para calcular los intervalos RR), y aquellos con amplitud prácticamente
-    nula, indicativos de desconexión de electrodo.
-
-    La normalización es z-score por latido, aplicada tras el filtro de calidad
-    para que un segmento plano no produzca valores numéricamente inestables.
-
-    Args:
-        senal: señal ECG cruda, 1D.
-        picos: posiciones de los picos R.
-        fs: frecuencia de muestreo en Hz.
-        etiquetas: superclase AAMI por latido (solo en entrenamiento).
-        ventana_ms: anchura de la ventana por latido, en milisegundos.
-        umbral_std_plano: desviación típica mínima aceptada, en mV.
-
-    Returns:
-        latidos: array (n_latidos, muestras_ventana) ya normalizado.
-        features_rr: array (n_latidos, 4) con las características de ritmo.
-        etiquetas_validas: etiquetas de los latidos conservados, o None.
-        picos_validos: posición en la señal original de cada latido conservado.
-    """
+    
     media_ventana = int(fs * ventana_ms / 1000 / 2)
 
     latidos: list[FloatArray] = []
@@ -215,19 +145,7 @@ def segmentar_latidos(
 def procesar_senal_cruda(
     senal: FloatArray, fs: int
 ) -> tuple[FloatArray, FloatArray, IntArray]:
-    """
-    Pipeline completo de inferencia: de señal cruda a latidos listos para el modelo.
-
-    Args:
-        senal: señal ECG cruda, 1D.
-        fs: frecuencia de muestreo en Hz.
-
-    Returns:
-        latidos: array (n_latidos, muestras_ventana) normalizado.
-        features_rr: array (n_latidos, 4) sin estandarizar (se estandariza en
-            inferencia con las estadísticas del entrenamiento).
-        picos: posición de cada latido en la señal original.
-    """
+    
     picos = detectar_picos_r(senal, fs)
     latidos, features, _, picos_validos = segmentar_latidos(senal, picos, fs)
     return latidos, features, picos_validos

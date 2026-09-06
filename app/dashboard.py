@@ -1,8 +1,8 @@
 """
 Interfaz interactiva para la detección de anomalías en ECG.
 
-Permite cargar una señal, ejecutar el detector y explorar los resultados:
-resumen global, serie temporal con los latidos sospechosos resaltados, revisión
+Permite cargar una señal, ejecutar el detector y explorar los resultados.
+Contiene: resumen global, serie temporal con los latidos sospechosos resaltados, revisión
 navegable de cada anomalía con su reconstrucción, y análisis agregado.
 
 Nota sobre la interpretación: el sistema es un detector de anomalías, no un
@@ -15,18 +15,14 @@ from __future__ import annotations
 
 import os
 
-# Estas variables deben fijarse ANTES de que se cargue PyTorch (lo que ocurre
-# de forma indirecta al importar src.inference). El runtime OpenMP de PyTorch
-# entra en conflicto con la reejecución de scripts de Streamlit en macOS ARM,
-# provocando fallos de segmentación al cambiar de estado.
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 
-# pyarrow usa mimalloc por defecto, cuyo inicializador de heap por hilo falla
+# pyarrow usa mimalloc por defecto. El inicializador de heap por hilo falla
 # en macOS ARM cuando Streamlit crea un hilo nuevo en cada reejecución del
-# script. El asignador del sistema no presenta este problema.
+# script
 os.environ.setdefault("ARROW_DEFAULT_MEMORY_POOL", "system")
 
 import sys
@@ -60,7 +56,6 @@ C_RECON = "#F4A261"
 C_GRID = "rgba(250,250,250,0.08)"
 C_TEXTO = "#B8BCC4"
 
-# Color asociado al componente del error que predomina en cada latido
 COLOR_CAUSA: dict[str, str] = {
     "morfología y ritmo": "#E63946",
     "ritmo": "#F4A261",
@@ -93,7 +88,7 @@ def layout_base(alto: int = 320, **kwargs) -> dict:
 
 @st.cache_resource
 def obtener_detector():
-    """El caché evita recargar el modelo en cada interacción del usuario."""
+    #El cache evita recargar el modelo en cada interacción del usuario
     return cargar_detector()
 
 
@@ -103,7 +98,7 @@ def analizar_cacheado(senal: np.ndarray, fs: int, umbral: float) -> ResultadoAna
 
 
 def cargar_csv(fichero) -> np.ndarray:
-    """Extrae la señal de un CSV, tomando la primera columna numérica."""
+    # Extrae la señal de un CSV tomando la primera columna numérica
     df = pd.read_csv(fichero)
     numericas = df.select_dtypes(include="number")
     if numericas.empty:
@@ -118,7 +113,7 @@ def cargar_csv(fichero) -> np.ndarray:
 def grafico_serie_temporal(
     res: ResultadoAnalisis, senal: np.ndarray, fs: int, ventana_ms: int = 600
 ) -> go.Figure:
-    """Serie temporal completa con los tramos sospechosos resaltados en rojo."""
+    #Serie temporal completa con los tramos sospechosos resaltados en rojo
     t = np.arange(len(senal)) / fs
     media_ventana = int(fs * ventana_ms / 1000 / 2)
 
@@ -132,8 +127,6 @@ def grafico_serie_temporal(
 
     anomalos = [lat for lat in res.latidos if lat.es_anomalo]
     if anomalos:
-        # Una sola traza con huecos (None) entre segmentos: más eficiente que
-        # añadir una traza independiente por cada latido.
         x_seg: list[float | None] = []
         y_seg: list[float | None] = []
         for lat in anomalos:
@@ -172,7 +165,7 @@ def grafico_serie_temporal(
 
 
 def grafico_scores(res: ResultadoAnalisis, indice_activo: int | None = None) -> go.Figure:
-    """Evolución del score con el umbral y el latido en revisión destacado."""
+    #Evolución del score con el umbral y el latido en revisión destacado
     fig = go.Figure()
 
     normales = [lat for lat in res.latidos if not lat.es_anomalo]
@@ -221,7 +214,7 @@ def grafico_scores(res: ResultadoAnalisis, indice_activo: int | None = None) -> 
 
 
 def grafico_reconstruccion(lat: ResultadoLatido, fs: int) -> go.Figure:
-    """Señal original frente a la reconstrucción, con el error puntual como área."""
+    #Señal original frente a la reconstrucción, con el error puntual como área
     t = np.arange(len(lat.senal)) / fs * 1000
 
     fig = go.Figure()
@@ -254,7 +247,7 @@ def grafico_reconstruccion(lat: ResultadoLatido, fs: int) -> go.Figure:
 
 
 def grafico_dispersion(res: ResultadoAnalisis, indice_activo: int | None = None) -> go.Figure:
-    """Plano forma-ritmo, coloreado por componente predominante del error."""
+    #Plano forma-ritmo, coloreado por componente predominante del error.
     fig = go.Figure()
 
     normales = [lat for lat in res.latidos if not lat.es_anomalo]
@@ -309,7 +302,7 @@ if "idx_revision" not in st.session_state:
 
 
 def reiniciar_revision() -> None:
-    """Vuelve al primer latido al cambiar de señal o de umbral."""
+    # Vuelve al primer latido al cambiar de señal o de umbral.
     st.session_state.idx_revision = 0
 
 

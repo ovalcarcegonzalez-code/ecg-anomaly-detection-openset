@@ -4,11 +4,11 @@ ECG arbitrarias.
 
 El score de anomalía combina dos componentes estandarizados:
   - Error de reconstrucción de la morfología del latido.
-  - Error de reconstrucción de las características de ritmo.
+  - Error de reconstrucción del ritmo.
 
 La estandarización usa las estadísticas calculadas sobre el conjunto de
 validación durante el entrenamiento, de modo que un score de valor 2 significa
-"dos desviaciones típicas por encima de lo observado en latidos normales".
+dos desviaciones típicas por encima de lo observado en latidos normales.
 """
 
 from __future__ import annotations
@@ -29,19 +29,10 @@ FloatArray = npt.NDArray[np.floating]
 IntArray = npt.NDArray[np.integer]
 
 
-# ---------------------------------------------------------------------------
-# Estructuras de salida
-# ---------------------------------------------------------------------------
-
-
-
-
-
-
 
 @dataclass
 class ResultadoLatido:
-    """Resultado del análisis de un latido individual."""
+    
 
     indice: int
     posicion_muestra: int
@@ -77,7 +68,7 @@ class ResultadoLatido:
 
     @property
     def causa_descripcion(self) -> str:
-        """Descripción legible del componente del error que predomina."""
+        #Descripción legible del componente del error que predomina
         descripciones = {
             "morfología y ritmo": "Desviación en forma y ritmo",
             "morfología": "Desviación en la forma del latido",
@@ -89,13 +80,13 @@ class ResultadoLatido:
 
     @property
     def error_puntual(self) -> FloatArray:
-        """Error de reconstrucción muestra a muestra, para localizar la anomalía."""
+        #Error de reconstrucción muestra a muestra, para localizar la anomalía
         return (self.senal - self.reconstruccion) ** 2
 
 
 @dataclass
 class ResultadoAnalisis:
-    """Resultado agregado del análisis de una señal completa."""
+    #Resultado agregado del análisis de una señal completa
 
     latidos: list[ResultadoLatido]
     umbral: float
@@ -119,21 +110,20 @@ class ResultadoAnalisis:
 
     @property
     def tiempos(self) -> FloatArray:
-        """Instante (en segundos) de cada latido dentro de la señal."""
+        #Instante (en segundos) de cada latido dentro de la señal
         return np.array(
             [lat.posicion_muestra / self.frecuencia_muestreo for lat in self.latidos]
         )
 
     @property
     def frecuencia_cardiaca_media(self) -> float:
-        """Frecuencia cardíaca estimada en latidos por minuto."""
+        #Frecuencia cardíaca estimada en latidos por minuto
         if self.n_latidos < 2:
             return float("nan")
         duracion_min = (self.tiempos[-1] - self.tiempos[0]) / 60.0
         return (self.n_latidos - 1) / duracion_min if duracion_min > 0 else float("nan")
 
     def top_anomalos(self, k: int = 10) -> list[ResultadoLatido]:
-        """Los k latidos con mayor score, para revisión priorizada."""
         return sorted(self.latidos, key=lambda lat: lat.score, reverse=True)[:k]
 
     def detectar_rachas(self, min_longitud: int = 3) -> list[tuple[int, int]]:
@@ -143,9 +133,6 @@ class ResultadoAnalisis:
         Clínicamente relevante: una extrasístole aislada suele ser benigna,
         mientras que tres o más consecutivas constituyen un evento de mayor
         gravedad.
-
-        Returns:
-            Lista de tuplas (indice_inicio, indice_fin) de cada racha.
         """
         rachas: list[tuple[int, int]] = []
         inicio: int | None = None
@@ -175,19 +162,7 @@ class ResultadoAnalisis:
         }
 
 
-# ---------------------------------------------------------------------------
-# Detector
-# ---------------------------------------------------------------------------
-
 class DetectorAnomalias:
-    """
-    Envuelve el modelo entrenado y todos los artefactos necesarios para
-    reproducir el cálculo de score empleado en la evaluación.
-
-    Los parámetros de producción (`w_rr`, `umbral`) se toman de `config.py`
-    y no del checkpoint, de modo que puedan ajustarse sin reentrenar. Los
-    valores originales del checkpoint se conservan como referencia.
-    """
 
     def __init__(self, checkpoint_path: Path = MEMAE_CLINICO_PATH) -> None:
         if not checkpoint_path.exists():
@@ -221,18 +196,11 @@ class DetectorAnomalias:
         self.fpr_objetivo = float(ckpt.get("fpr_objetivo", 0.10))
         self.definicion = str(ckpt.get("definicion", "desconocida"))
 
-    # -- Cálculo interno ----------------------------------------------------
 
     def _puntuar_lote(
         self, latidos: FloatArray, features_rr: FloatArray, batch_size: int = 256
     ) -> tuple[FloatArray, FloatArray, FloatArray]:
-        """
-        Ejecuta el modelo sobre un conjunto de latidos ya preprocesados.
-
-        Returns:
-            reconstrucciones, error de morfología por latido, error de ritmo
-            por latido.
-        """
+        
         rr_norm = (features_rr - self.rr_mean) / (self.rr_std + 1e-8)
 
         n = len(latidos)
@@ -258,16 +226,7 @@ class DetectorAnomalias:
     def _combinar_scores(
         self, err_sig: FloatArray, err_rr: FloatArray
     ) -> tuple[FloatArray, FloatArray, FloatArray]:
-        """
-        Estandariza y combina ambos componentes del error.
-
-        La estandarización previa es imprescindible: sin ella, el componente
-        con mayor magnitud numérica domina la suma con independencia de su
-        capacidad discriminativa real.
-
-        Returns:
-            score combinado, z-score de morfología, z-score de ritmo.
-        """
+        
         z_sig = (err_sig - self.mu_sig) / (self.sd_sig + 1e-8)
         z_rr = (err_rr - self.mu_rr) / (self.sd_rr + 1e-8)
         score = (1 - self.w_rr) * z_sig + self.w_rr * z_rr
@@ -276,11 +235,6 @@ class DetectorAnomalias:
     # -- API pública --------------------------------------------------------
 
     def calcular_scores(self, senal: FloatArray, fs: int) -> FloatArray:
-        """
-        Devuelve el score de anomalía de cada latido, sin aplicar umbral.
-
-        Útil para calibración, donde solo interesa la distribución de scores.
-        """
         latidos, features_rr, _ = procesar_senal_cruda(senal, fs)
         _, err_sig, err_rr = self._puntuar_lote(latidos, features_rr)
         score, _, _ = self._combinar_scores(err_sig, err_rr)
@@ -289,20 +243,6 @@ class DetectorAnomalias:
     def calibrar_umbral(
         self, senal: FloatArray, fs: int, fpr_objetivo: float | None = None
     ) -> float:
-        """
-        Calibra el umbral sobre una señal de referencia asumida mayoritariamente
-        normal.
-
-        Permite adaptar el sistema a un paciente concreto usando un tramo basal
-        suyo, lo que mitiga la variabilidad inter-paciente observada en los
-        experimentos.
-
-        Args:
-            senal: señal ECG de referencia.
-            fs: frecuencia de muestreo en Hz.
-            fpr_objetivo: proporción de latidos de referencia que se aceptará
-                marcar como anómalos. Por defecto, el valor de configuración.
-        """
         fpr = self.fpr_objetivo if fpr_objetivo is None else fpr_objetivo
         scores = self.calcular_scores(senal, fs)
         return float(np.percentile(scores, 100 * (1 - fpr)))
@@ -312,18 +252,6 @@ class DetectorAnomalias:
         senales: list[tuple[FloatArray, int]],
         fpr_objetivo: float | None = None,
     ) -> float:
-        """
-        Calibra el umbral agrupando los scores de varias señales de referencia.
-
-        Preferible a promediar umbrales individuales: dado que cada registro
-        presenta su propia distribución de scores, la mediana de los umbrales
-        individuales no reproduce la tasa de falsos positivos deseada sobre el
-        conjunto.
-
-        Args:
-            senales: lista de pares (señal, frecuencia de muestreo).
-            fpr_objetivo: tasa de falsos positivos objetivo sobre el conjunto.
-        """
         fpr = self.fpr_objetivo if fpr_objetivo is None else fpr_objetivo
         pool = np.concatenate([self.calcular_scores(s, fs) for s, fs in senales])
         return float(np.percentile(pool, 100 * (1 - fpr)))
@@ -331,17 +259,6 @@ class DetectorAnomalias:
     def analizar(
         self, senal: FloatArray, fs: int, umbral: float | None = None
     ) -> ResultadoAnalisis:
-        """
-        Analiza una señal ECG completa.
-
-        Args:
-            senal: señal ECG cruda, 1D.
-            fs: frecuencia de muestreo en Hz.
-            umbral: umbral de decisión. Si es None, se usa el de configuración.
-
-        Returns:
-            Resultado con un objeto por latido y métricas agregadas.
-        """
         latidos, features_rr, picos = procesar_senal_cruda(senal, fs)
         recons, err_sig, err_rr = self._puntuar_lote(latidos, features_rr)
         scores, z_sig, z_rr = self._combinar_scores(err_sig, err_rr)
