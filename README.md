@@ -14,8 +14,8 @@ entrenamiento (*open-set detection*).
 Un clasificador supervisado solo puede responder con las clases que aprendió.
 Ante una arritmia que no estaba en su conjunto de entrenamiento, la asigna
 forzosamente a alguna categoría conocida, sin emitir ninguna señal de alerta.
-En un escenario clínico real —donde no es posible anticipar todas las
-patologías— esta limitación es relevante.
+En un escenario clínico real donde no es posible anticipar todas las
+patologías, esta limitación es relevante.
 
 Este trabajo aborda el problema desde la detección de anomalías: en lugar de
 aprender fronteras entre categorías, el modelo aprende **qué es un latido
@@ -167,11 +167,11 @@ for latido in resultado.top_anomalos(5):
 │   ├── dashboard.py           Interfaz Streamlit
 │   └── ejemplos/              Señales de demostración
 ├── data/
-│   ├── raw/mitdb/             Dataset (no versionado)
-│   └── processed/             Splits preprocesados (no versionado)
+│   ├── raw/mitdb/             Dataset 
+│   └── processed/             Splits preprocesados 
 ├── models/
 │   ├── memae_clinico.pt       Modelo final desplegado
-│   ├── memae_hibrido.pt       Variante open-set (apartado 5)
+│   ├── memae_hibrido.pt       Variante open-set 
 │   └── baseline_classifier.pt Clasificador supervisado de referencia
 ├── notebooks/
 │   └── 01_exploracion.ipynb   Experimentación completa
@@ -206,7 +206,7 @@ Los latidos se agrupan según el estándar **AAMI EC57** en cinco superclases:
 ### Decisiones metodológicas
 
 **División por paciente, no por latido.** Los latidos de un mismo paciente son
-muy similares entre sí; repartirlos aleatoriamente produciría fuga de
+muy similares entre sí, repartirlos aleatoriamente produciría fuga de
 información y métricas artificialmente optimistas. La división se realiza a
 nivel de paciente, de modo que la evaluación refleja el escenario real de
 enfrentarse a un corazón desconocido.
@@ -223,34 +223,6 @@ normalidad aprendida.
 **Normalización por latido.** Cada segmento se normaliza con su propia media y
 desviación típica, eliminando las diferencias de amplitud entre pacientes sin
 introducir fuga de información entre conjuntos.
-
----
-
-## Limitaciones
-
-**Detector, no clasificador.** El sistema señala desviaciones de la normalidad
-pero no identifica el tipo de arritmia. Se evaluó la posibilidad de inferirlo
-a partir de la descomposición del error en sus componentes de forma y ritmo,
-obteniendo un acierto del 26,7 % —insuficiente para su uso—, lo que confirma
-que un score unidimensional no contiene la información necesaria para
-discriminar entre tipos de ectopia.
-
-**Variabilidad entre pacientes.** El umbral calibrado sobre una población de
-referencia produce tasas de falsos positivos dispares según el registro
-(2,1 % – 24,1 %). Los valores más altos se concentran en pacientes con ectopia
-ventricular muy frecuente, donde los intervalos RR de los latidos normales
-adyacentes se ven alterados por proximidad. La interfaz permite ajustar el
-umbral manualmente para mitigarlo.
-
-**Latidos de fusión.** La clase F se detecta con un rendimiento limitado
-(AUROC 0,68). Es un resultado esperable: por definición fisiológica se trata de
-una morfología intermedia entre normal y ventricular, situada en la frontera
-de decisión.
-
-**Detección automática de picos R.** El rendimiento en producción es
-ligeramente inferior al medido con las anotaciones de referencia del dataset,
-ya que la localización automática de los picos introduce variabilidad en el
-cálculo de los intervalos RR.
 
 ---
 
@@ -274,5 +246,4 @@ médico ni sustituye al criterio clínico profesional.
 
 ## Autor
 
-Óscar Valcarce González — Grado en Inteligencia Artificial, Universidad Rey
-Juan Carlos. Aplicaciones de la Inteligencia Artificial, curso 2026-27.
+Óscar Valcarce González — Universidad Rey Juan Carlos. 
