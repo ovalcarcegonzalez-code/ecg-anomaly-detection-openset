@@ -1,100 +1,98 @@
-# Detección de anomalías en ECG mediante autoencoder con memoria
+# ECG Anomaly Detection with a Memory-Augmented Autoencoder
 
-Sistema de detección de latidos anómalos en electrocardiograma entrenado
-**exclusivamente con latidos normales**. A diferencia de un clasificador
-supervisado, es capaz de identificar arritmias que nunca vio durante el
-entrenamiento (*open-set detection*).
+A system for detecting anomalous heartbeats in electrocardiograms, trained
+**exclusively on normal beats**. Unlike a supervised classifier, it can
+identify arrhythmias it never saw during training (*open-set detection*).
 
-**Aplicación desplegada:** https://ecg-anomaly-detection-openset-ovg.streamlit.app
-
----
-
-## Motivación
-
-Un clasificador supervisado solo puede responder con las clases que aprendió.
-Ante una arritmia que no estaba en su conjunto de entrenamiento, la asigna
-forzosamente a alguna categoría conocida, sin emitir ninguna señal de alerta.
-En un escenario clínico real donde no es posible anticipar todas las
-patologías, esta limitación es relevante.
-
-Este trabajo aborda el problema desde la detección de anomalías: en lugar de
-aprender fronteras entre categorías, el modelo aprende **qué es un latido
-normal** y señala cualquier desviación, con independencia de su tipo.
-
-Para validarlo se excluyó deliberadamente la clase V (extrasístoles
-ventriculares) del conjunto de entrenamiento, evaluando después la capacidad
-del sistema para detectarla como anómala.
+**Deployed application:** https://ecg-anomaly-detection-openset-ovg.streamlit.app
 
 ---
 
-## Resultados
+## Motivation
 
-Evaluación sobre el conjunto de test de MIT-BIH (36.881 latidos de pacientes
-no vistos durante el entrenamiento):
+A supervised classifier can only answer with the classes it has learned.
+Faced with an arrhythmia that was not in its training set, it is forced to
+assign it to some known category, without raising any warning signal. In a
+real clinical setting, where it is impossible to anticipate every pathology,
+this limitation matters.
 
-| Modelo | AUROC (V) | AUPRC (V) | Recall V @ FPR 10 % |
+This work approaches the problem from the anomaly detection angle: instead of
+learning boundaries between categories, the model learns **what a normal beat
+looks like** and flags any deviation, regardless of its type.
+
+To validate this, class V (premature ventricular contractions) was
+deliberately excluded from the training set, and the system's ability to
+detect it as anomalous was evaluated afterwards.
+
+---
+
+## Results
+
+Evaluation on the MIT-BIH test set (36,881 beats from patients unseen during
+training):
+
+| Model | AUROC (V) | AUPRC (V) | Recall V @ FPR 10% |
 |---|---|---|---|
-| Autoencoder convolucional | 0,795 | 0,448 | 65,0 % |
-| Híbrido (forma + ritmo) | 0,910 | 0,583 | 73,6 % |
-| **MemAE (modelo final)** | **0,957** | **0,743** | **93,9 %** |
+| Convolutional autoencoder | 0.795 | 0.448 | 65.0% |
+| Hybrid (shape + rhythm) | 0.910 | 0.583 | 73.6% |
+| **MemAE (final model)** | **0.957** | **0.743** | **93.9%** |
 
-Bajo la definición clínica de normalidad (únicamente latidos N), el modelo
-final alcanza un AUROC global de 0,950 y detecta el 96,2 % de las
-extrasístoles ventriculares, el 92,1 % de las supraventriculares y el 95,9 %
-de los latidos de marcapasos, con un 10 % de falsas alarmas sobre latidos
-sinusales normales.
+Under the clinical definition of normality (N beats only), the final model
+achieves an overall AUROC of 0.950 and detects 96.2% of premature ventricular
+contractions, 92.1% of supraventricular beats and 95.9% of paced beats, with
+a 10% false alarm rate on normal sinus beats.
 
 ---
 
-## Arquitectura
+## Architecture
 
-El modelo combina dos fuentes de información complementarias:
+The model combines two complementary sources of information:
 
 ```
-   Señal (216 puntos, 600 ms)      Intervalos RR (4 características)
+   Signal (216 points, 600 ms)        RR intervals (4 features)
               │                                │
-      Encoder convolucional 1D          Encoder denso
+      1D convolutional encoder            Dense encoder
               │                                │
               └──────────┬─────────────────────┘
                          │
-                  Espacio latente (14)
+                  Latent space (14)
                          │
                   ┌──────▼──────┐
-                  │   MEMORIA   │   100 prototipos de normalidad
+                  │   MEMORY    │   100 prototypes of normality
                   └──────┬──────┘
                          │
               ┌──────────┴─────────────────────┐
               │                                │
-      Decoder convolucional             Decoder denso
+      Convolutional decoder              Dense decoder
               │                                │
-      Señal reconstruida            Intervalos RR reconstruidos
+      Reconstructed signal        Reconstructed RR intervals
 ```
 
-**Rama de morfología.** Convoluciones 1D que capturan la forma del latido:
-patrones locales invariantes a pequeños desplazamientos temporales.
+**Morphology branch.** 1D convolutions that capture the shape of the beat:
+local patterns that are invariant to small temporal shifts.
 
-**Rama de ritmo.** Cuatro características derivadas de los intervalos RR
-(previo, siguiente y sus ratios respecto al ritmo basal local del paciente).
-Aportan la información de prematuridad y pausa compensatoria, ausente al
-procesar cada latido de forma aislada.
+**Rhythm branch.** Four features derived from RR intervals (previous, next,
+and their ratios with respect to the patient's local baseline rhythm). They
+provide information about prematurity and compensatory pause, which is absent
+when each beat is processed in isolation.
 
-**Módulo de memoria.** Un autoencoder convencional puede generalizar tanto que
-reconstruye correctamente las propias anomalías, reduciendo su error y
-dificultando la detección. El módulo de memoria (Gong et al., 2019) impide que
-el decoder reconstruya libremente: solo puede combinar prototipos de
-normalidad aprendidos durante el entrenamiento, lo que amplifica el error
-sobre entradas atípicas.
+**Memory module.** A conventional autoencoder can generalize so well that it
+correctly reconstructs the anomalies themselves, lowering their error and
+making detection harder. The memory module (Gong et al., 2019) prevents the
+decoder from reconstructing freely: it can only combine prototypes of
+normality learned during training, which amplifies the error on atypical
+inputs.
 
-**Score de anomalía.** Los errores de reconstrucción de ambas ramas se
-estandarizan por separado antes de combinarse. Sin esta estandarización, la
-componente de mayor magnitud numérica domina la suma con independencia de su
-capacidad discriminativa real.
+**Anomaly score.** The reconstruction errors of both branches are
+standardized separately before being combined. Without this standardization,
+the component with the larger numerical magnitude dominates the sum
+regardless of its actual discriminative power.
 
 ---
 
-## Instalación
+## Installation
 
-Requiere Python 3.12.
+Requires Python 3.12.
 
 ```bash
 git clone https://github.com/ovalcarcegonzalez-code/ecg-anomaly-detection.git
@@ -108,40 +106,40 @@ pip install -r requirements.txt
 
 ---
 
-## Uso
+## Usage
 
-### Interfaz web
+### Web interface
 
 ```bash
 streamlit run app/dashboard.py
 ```
 
-Se abre en `http://localhost:8501`. Incluye dos registros de ejemplo
-precargados, por lo que puede probarse sin descargar datos.
+It opens at `http://localhost:8501`. It includes two preloaded example
+recordings, so it can be tried without downloading any data.
 
-La aplicación permite:
+The application allows you to:
 
-- Cargar una señal ECG en formato CSV o utilizar los ejemplos incluidos.
-- Visualizar la señal completa con los latidos sospechosos resaltados.
-- Revisar cada anomalía comparando la señal real con la reconstrucción del
-  modelo, con la zona de mayor discrepancia señalada.
-- Ajustar el umbral de decisión según la sensibilidad deseada.
-- Descargar los resultados por latido en CSV.
+- Upload an ECG signal in CSV format or use the included examples.
+- View the full signal with suspicious beats highlighted.
+- Review each anomaly by comparing the real signal with the model's
+  reconstruction, with the area of greatest discrepancy marked.
+- Adjust the decision threshold according to the desired sensitivity.
+- Download per-beat results as CSV.
 
-### Reproducir el entrenamiento
+### Reproducing the training
 
 ```bash
-# 1. Descargar el dataset MIT-BIH (unos 100 MB)
+# 1. Download the MIT-BIH dataset (about 100 MB)
 python src/data/download_data.py
 
-# 2. Ejecutar el notebook
+# 2. Run the notebook
 jupyter notebook notebooks/01_exploracion.ipynb
 ```
 
-El notebook recorre el proceso completo: exploración, preprocesamiento,
-clasificador baseline, y las tres iteraciones del modelo de detección.
+The notebook walks through the full process: exploration, preprocessing,
+baseline classifier, and the three iterations of the detection model.
 
-### Uso programático
+### Programmatic use
 
 ```python
 import wfdb
@@ -160,80 +158,79 @@ for latido in resultado.top_anomalos(5):
 
 ---
 
-## Estructura del proyecto
+## Project structure
 
 ```
 ├── app/
-│   ├── dashboard.py           Interfaz Streamlit
-│   └── ejemplos/              Señales de demostración
+│   ├── dashboard.py           Streamlit interface
+│   └── ejemplos/              Demo signals
 ├── data/
-│   ├── raw/mitdb/             Dataset 
-│   └── processed/             Splits preprocesados 
+│   ├── raw/mitdb/             Dataset
+│   └── processed/             Preprocessed splits
 ├── models/
-│   ├── memae_clinico.pt       Modelo final desplegado
-│   ├── memae_hibrido.pt       Variante open-set 
-│   └── baseline_classifier.pt Clasificador supervisado de referencia
+│   ├── memae_clinico.pt       Final deployed model
+│   ├── memae_hibrido.pt       Open-set variant
+│   └── baseline_classifier.pt Reference supervised classifier
 ├── notebooks/
-│   └── 01_exploracion.ipynb   Experimentación completa
+│   └── 01_exploracion.ipynb   Full experimentation
 ├── src/
-│   ├── config.py              Rutas y parámetros centralizados
+│   ├── config.py              Centralized paths and parameters
 │   ├── data/
-│   │   ├── download_data.py   Descarga del dataset
-│   │   └── preprocessing.py   Segmentación y características de ritmo
-│   ├── models/memae.py        Arquitectura MemAE
-│   └── inference/predict.py   Carga del modelo y cálculo de scores
+│   │   ├── download_data.py   Dataset download
+│   │   └── preprocessing.py   Segmentation and rhythm features
+│   ├── models/memae.py        MemAE architecture
+│   └── inference/predict.py   Model loading and score computation
 └── requirements.txt
 ```
 
 ---
 
-## Datos
+## Data
 
-**MIT-BIH Arrhythmia Database** (PhysioNet): 48 registros de media hora
-procedentes de 47 pacientes, con cada latido anotado independientemente por
-dos cardiólogos.
+**MIT-BIH Arrhythmia Database** (PhysioNet): 48 half-hour recordings from 47
+patients, with each beat independently annotated by two cardiologists.
 
-Los latidos se agrupan según el estándar **AAMI EC57** en cinco superclases:
+Beats are grouped according to the **AAMI EC57** standard into five
+superclasses:
 
-| Clase | Descripción |
+| Class | Description |
 |---|---|
-| N | Latido normal o con conducción alterada |
-| S | Ectópico supraventricular |
-| V | Ectópico ventricular |
-| F | Latido de fusión |
-| Q | Marcapasos o no clasificable |
+| N | Normal beat or beat with altered conduction |
+| S | Supraventricular ectopic |
+| V | Ventricular ectopic |
+| F | Fusion beat |
+| Q | Paced or unclassifiable beat |
 
-### Decisiones metodológicas
+### Methodological decisions
 
-**División por paciente, no por latido.** Los latidos de un mismo paciente son
-muy similares entre sí, repartirlos aleatoriamente produciría fuga de
-información y métricas artificialmente optimistas. La división se realiza a
-nivel de paciente, de modo que la evaluación refleja el escenario real de
-enfrentarse a un corazón desconocido.
+**Split by patient, not by beat.** Beats from the same patient are very
+similar to each other; distributing them randomly would cause information
+leakage and artificially optimistic metrics. The split is done at the patient
+level, so the evaluation reflects the real-world scenario of facing an unseen
+heart.
 
-**Exclusión de la clase V del entrenamiento.** Es la arritmia objetivo del
-experimento open-set: el modelo debe detectarla sin haberla visto nunca.
+**Exclusion of class V from training.** It is the target arrhythmia of the
+open-set experiment: the model must detect it without ever having seen it.
 
-**Exclusión de la clase Q del entrenamiento.** Los latidos de marcapasos
-presentan una espiga de estimulación eléctrica de amplitud muy superior a
-cualquier morfología fisiológica (el 97 % de los valores atípicos de amplitud
-del dataset pertenecen a esta clase), que contaminaría la noción de
-normalidad aprendida.
+**Exclusion of class Q from training.** Paced beats show an electrical
+pacing spike with an amplitude far above any physiological morphology (97% of
+the amplitude outliers in the dataset belong to this class), which would
+contaminate the learned notion of normality.
 
-**Normalización por latido.** Cada segmento se normaliza con su propia media y
-desviación típica, eliminando las diferencias de amplitud entre pacientes sin
-introducir fuga de información entre conjuntos.
-
----
-
-## Aviso
-
-Herramienta desarrollada con fines académicos. No constituye un dispositivo
-médico ni sustituye al criterio clínico profesional.
+**Per-beat normalization.** Each segment is normalized with its own mean and
+standard deviation, removing amplitude differences between patients without
+introducing information leakage between sets.
 
 ---
 
-## Referencias
+## Disclaimer
+
+Tool developed for academic purposes. It is not a medical device and does not
+replace professional clinical judgment.
+
+---
+
+## References
 
 - Moody GB, Mark RG. *The impact of the MIT-BIH Arrhythmia Database*.
   IEEE Eng in Med and Biol 20(3):45-50, 2001.
@@ -244,6 +241,6 @@ médico ni sustituye al criterio clínico profesional.
 
 ---
 
-## Autor
+## Author
 
-Óscar Valcarce González — Universidad Rey Juan Carlos. 
+Óscar Valcarce González.
